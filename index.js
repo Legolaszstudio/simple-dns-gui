@@ -23,6 +23,22 @@ fastify.setErrorHandler(function (error, request, reply) {
     reply.code(errorResponse.statusCode).send(errorResponse);
 });
 
+function reloadDnsmasq() {
+    // send SIGHUP to dnsmasq process to reload config
+    const { exec } = require('child_process');
+    exec('pkill -HUP dnsmasq', (error, stdout, stderr) => {
+        if (error) {
+            logger.error(`Error reloading dnsmasq: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            logger.error(`stderr: ${stderr}`);
+            return;
+        }
+        logger.info(`dnsmasq reloaded: ${stdout}`);
+    });
+}
+
 // Declare a route
 fastify.get('/', function handler(request, reply) {
     const index = fs.readFileSync('./index.html', 'utf8');
@@ -44,6 +60,7 @@ fastify.post('/add-host', async function (request, reply) {
     const { ip, hostname } = request.body;
     const entry = `${ip} ${hostname}\n`;
     fs.appendFileSync(DNSMASQ_FILE, entry, 'utf8');
+    reloadDnsmasq();
     return { message: 'Host added successfully' };
 });
 
@@ -57,6 +74,7 @@ fastify.post('/delete-host', async function (request, reply) {
     }
     lines.splice(id, 1);
     fs.writeFileSync(DNSMASQ_FILE, lines.join('\n') + '\n', 'utf8');
+    reloadDnsmasq();
     return { message: 'Host deleted successfully' };
 });
 
@@ -70,6 +88,7 @@ fastify.post('/edit-host', async function (request, reply) {
     }
     lines[id] = `${ip} ${hostname}`;
     fs.writeFileSync(DNSMASQ_FILE, lines.join('\n') + '\n', 'utf8');
+    reloadDnsmasq();
     return { message: 'Host edited successfully' };
 });
 
