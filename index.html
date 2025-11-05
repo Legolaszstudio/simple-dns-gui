@@ -15,27 +15,100 @@
 <body onload="getTable()">
     <h1>Welcome to NovyDNS</h1>
     <p>Your simple DNS management GUI.</p>
+    <div style="display: flex; flex-direction: row;">
+        <button style="margin: 5px" id="id_order" onclick="setOrdering('id')">Order by ID (ASC)</button>
+        <button style="margin: 5px" id="ip_order" onclick="setOrdering('ip')">Order by IP (ASC)</button>
+        <button style="margin: 5px" id="hostname_order" onclick="setOrdering('hostname')">Order by Hostname
+            (ASC)</button>
+    </div>
     <script>
         let data = [];
+        let ordering = 'id_asc';
+
+        async function setOrdering(orderBy) {
+            if (ordering.startsWith(orderBy)) {
+                ordering = ordering.endsWith('asc') ? `${orderBy}_desc` : `${orderBy}_asc`;
+                document.getElementById(`${orderBy}_order`).innerText = `Order by ${orderBy.charAt(0).toUpperCase() + orderBy.slice(1)} (${ordering.endsWith('asc') ? 'ASC' : 'DESC'})`;
+            } else {
+                ordering = `${orderBy}_asc`;
+                document.getElementById('id_order').innerText = 'Order by ID (ASC)';
+                document.getElementById('ip_order').innerText = 'Order by IP (ASC)';
+                document.getElementById('hostname_order').innerText = 'Order by Hostname (ASC)';
+            }
+
+            if (orderBy === 'ip') {
+                const ipv4 = data.filter(entry => entry.ip.includes('.'));
+                const ipv6 = data.filter(entry => entry.ip.includes(':'));
+
+                ipv4.sort((a, b) => {
+                    const partsA = a.ip.split('.').map(num => parseInt(num));
+                    const partsB = b.ip.split('.').map(num => parseInt(num));
+                    for (let i = 0; i < 4; i++) {
+                        if (partsA[i] < partsB[i]) return ordering.endsWith('asc') ? -1 : 1;
+                        if (partsA[i] > partsB[i]) return ordering.endsWith('asc') ? 1 : -1;
+                    }
+                    return 0;
+                });
+
+                ipv6.sort((a, b) => {
+                    const partsA = a.ip.split(':').map(part => parseInt(part, 16) || 0);
+                    const partsB = b.ip.split(':').map(part => parseInt(part, 16) || 0);
+                    for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+                        if ((partsA[i] || 0) < (partsB[i] || 0)) return ordering.endsWith('asc') ? -1 : 1;
+                        if ((partsA[i] || 0) > (partsB[i] || 0)) return ordering.endsWith('asc') ? 1 : -1;
+                    }
+                    return 0;
+                });
+
+                data = ipv4.concat(ipv6);
+                visualizeData();
+                return;
+            }
+
+            data.sort((a, b) => {
+                let fieldA = a[orderBy];
+                let fieldB = b[orderBy];
+                if (orderBy === 'id') {
+                    fieldA = parseInt(fieldA);
+                    fieldB = parseInt(fieldB);
+                }
+                if (fieldA < fieldB) return ordering.endsWith('asc') ? -1 : 1;
+                if (fieldA > fieldB) return ordering.endsWith('asc') ? 1 : -1;
+                return 0;
+            });
+
+            visualizeData();
+        }
+
         async function getTable() {
             try {
                 const response = await fetch('/get-hosts', { method: 'POST' });
                 data = (await response.json()).data;
                 console.log(data);
 
-                let table = '<table border="1"><tr><th>ID</th><th>IP Address</th><th>Hostname</th><th>EDIT</th><th>DELETE</th></tr>';
-                data.forEach(entry => {
-                    table += `<tr><td class="pad2">${entry.id}</td><td class="pad2">${entry.ip}</td><td class="pad2">${entry.hostname}</td><td class="pad2"><button onclick="editEntry(${entry.id})">Edit</button></td><td class="pad2"><button onclick="deleteEntry(${entry.id})">Delete</button></td></tr>`;
-                });
-                table += '</table>';
-                document.body.innerHTML += table;
-
-                // Add new entry button
-                document.body.innerHTML += '<br><button onclick="addEntry()">Add New Entry</button>';
+                visualizeData();
             } catch (error) {
                 alert('Failed to fetch data from server.');
                 console.error('Error fetching data:', error);
             }
+        }
+
+        function visualizeData() {
+            try {
+                document.getElementById('hostTable').remove();
+                document.getElementById('addBtn').remove();
+            } catch (e) {
+                // Table doesn't exist yet
+            }
+
+            let table = '<table id="hostTable" border="1"><tr><th>ID</th><th>IP Address</th><th>Hostname</th><th>EDIT</th><th>DELETE</th></tr>';
+            data.forEach(entry => {
+                table += `<tr><td class="pad2">${entry.id}</td><td class="pad2">${entry.ip}</td><td class="pad2">${entry.hostname}</td><td class="pad2"><button onclick="editEntry(${entry.id})">Edit</button></td><td class="pad2"><button onclick="deleteEntry(${entry.id})">Delete</button></td></tr>`;
+            });
+            table += '</table>';
+            document.body.innerHTML += table;
+            // Add new entry button
+            document.body.innerHTML += '<button id="addBtn" onclick="addEntry()" style="margin-top: 10px">Add New Entry</button>';
         }
 
         async function addEntry() {
