@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovyDNS</title>
+    <style>
+        .pad2 {
+            padding: 8px;
+        }
+    </style>
+</head>
+
+<body onload="getTable()">
+    <h1>Welcome to NovyDNS</h1>
+    <p>Your simple DNS management GUI.</p>
+    <script>
+        let data = [];
+        async function getTable() {
+            try {
+                const response = await fetch('/get-hosts', { method: 'POST' });
+                data = (await response.json()).data;
+                console.log(data);
+
+                let table = '<table border="1"><tr><th>ID</th><th>IP Address</th><th>Hostname</th><th>EDIT</th><th>DELETE</th></tr>';
+                data.forEach(entry => {
+                    table += `<tr><td class="pad2">${entry.id}</td><td class="pad2">${entry.ip}</td><td class="pad2">${entry.hostname}</td><td class="pad2"><button onclick="editEntry(${entry.id})">Edit</button></td><td class="pad2"><button onclick="deleteEntry(${entry.id})">Delete</button></td></tr>`;
+                });
+                table += '</table>';
+                document.body.innerHTML += table;
+
+                // Add new entry button
+                document.body.innerHTML += '<br><button onclick="addEntry()">Add New Entry</button>';
+            } catch (error) {
+                alert('Failed to fetch data from server.');
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        async function addEntry() {
+            const ip = prompt('Enter IP Address:');
+            const hostname = prompt('Enter Hostname:');
+            if (ip && hostname) {
+                const response = await fetch('/add-host', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip, hostname })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('Entry added successfully!');
+                    location.reload();
+                } else {
+                    alert('Failed to add entry.');
+                }
+            }
+        }
+
+        async function deleteEntry(id) {
+            const entry = data.find(e => e.id === id);
+            const confirmation = confirm(`Are you sure you want to delete this entry?\n    ${entry.hostname} -> ${entry.ip}`);
+            if (confirmation) {
+                const response = await fetch('/delete-host', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+                if (response.ok) {
+                    alert('Entry deleted successfully!');
+                    location.reload();
+                } else {
+                    alert('Failed to delete entry.');
+                }
+            }
+        }
+
+        async function editEntry(id) {
+            const entry = data.find(e => e.id === id);
+            const newIp = prompt('Enter new IP Address:', entry.ip);
+            const newHostname = prompt('Enter new Hostname:', entry.hostname);
+            if (newIp && newHostname) {
+                const response = await fetch('/edit-host', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, ip: newIp, hostname: newHostname })
+                });
+                if (response.ok) {
+                    alert('Entry updated successfully!');
+                    location.reload();
+                } else {
+                    alert('Failed to update entry.');
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "simple-dns-gui",
+  "version": "0.0.1",
+  "main": "index.js",
+  "repository": "https://github.com/Legolaszstudio/simple-dns-gui.git",
+  "author": "Legolaszstudio <novotny.levente@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "fastify": "^5.6.1",
+    "tslog": "^4.10.2"
+  }
+}
