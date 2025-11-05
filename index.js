@@ -74,7 +74,7 @@ fastify.post('/edit-host', async function (request, reply) {
 });
 
 // Run the server!
-fastify.listen({ address: '0.0.0.0', port: 3000 }, (err) => {
+fastify.listen({ host: '0.0.0.0', port: 3000 }, (err) => {
     if (err) {
         logger.error(err);
         process.exit(1);
